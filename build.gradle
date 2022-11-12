@@ -1,0 +1,132 @@
+plugins {
+    id 'org.springframework.boot' version '2.7.5'
+    id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+    id 'org.asciidoctor.convert' version '1.5.8'
+    id 'java'
+    id 'jacoco'
+}
+
+group = 'com.nowstart'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '11'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('snippetsDir', file("build/generated-snippets"))
+    set('springCloudVersion', "2021.0.5")
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
+    implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity5'
+    compileOnly 'org.projectlombok:lombok'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    runtimeOnly 'com.h2database:h2'
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
+    testImplementation 'org.springframework.security:spring-security-test'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+tasks.named('test') {
+    outputs.dir snippetsDir
+    useJUnitPlatform()
+    finalizedBy 'jacocoTestReport'
+}
+
+tasks.named('asciidoctor') {
+    inputs.dir snippetsDir
+    dependsOn test
+}
+
+// JaCoCo 플러그인의 Task
+// 읽기 좋은 형태의 리포트로 저장
+jacocoTestReport {
+    reports {
+        // 원하는 리포트를 켜고 끌 수 있다.
+        html.enabled true
+        xml.enabled false
+        csv.enabled false
+
+        //각 리포트 타입 마다 리포트 저장 경로를 설정할 수 있다.
+        //html.destination file("$buildDir/jacocoHtml")
+        //xml.destination file("$buildDir/jacoco.xml")
+    }
+
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                    "com/nowstart/teambalance/data/*",
+                    "com/nowstart/teambalance/config/*",
+                    "com/nowstart/teambalance/exception/*",
+                    "com/nowstart/teambalance/filter/*",
+                    'com/nowstart/teambalance/spock/*',
+                    "com/nowstart/teambalance/interceptor/*",
+                    "com/nowstart/teambalance/advice/*",
+                    "com/nowstart/teambalance/**Application**"
+            ])
+        }))
+    }
+
+    finalizedBy 'jacocoTestCoverageVerification'
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            // 룰을 간단히 켜고 끌 수 있다.
+            enabled = true
+
+            // 룰을 체크할 단위는 클래스 단위
+            element = 'CLASS'
+
+            // Method 커버리지
+            limit {
+                counter = 'METHOD' // Option: INSTRUCTION(default), LINE, BRANCH, CLASS, METHOD, COMPLEXITY
+                value = 'COVEREDRATIO' // Option: COVEREDRATIO(default), TOTALCOUNT, MISSEDCOUNT, COVEREDCOUNT, MISSEDRATIO
+                minimum = 1.00
+            }
+
+            // Branch 커버리지
+            limit {
+                counter = 'BRANCH' // Option: INSTRUCTION(default), LINE, BRANCH, CLASS, METHOD, COMPLEXITY
+                value = 'COVEREDRATIO' // Option: COVEREDRATIO(default), TOTALCOUNT, MISSEDCOUNT, COVEREDCOUNT, MISSEDRATIO
+                minimum = 0.60
+            }
+
+            // 커버리지 체크를 제외할 클래스들
+            excludes = [
+                    'com.nowstart.teambalance.data.*',
+                    'com.nowstart.teambalance.config.*',
+                    'com.nowstart.teambalance.exception.*',
+                    'com.nowstart.teambalance.filter.*',
+                    'com.nowstart.teambalance.spock.*',
+                    'com.nowstart.teambalance.interceptor.*',
+                    'com.nowstart.teambalance.advice.*',
+                    'com.nowstart.teambalance.**Application**'
+            ]
+        }
+    }
+}
